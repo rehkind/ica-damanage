@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "title": "ICA WGS delivery pipeline parameters",
+  "description": "Collect selected DRAGEN WGS results in the central connector output.",
+  "type": "object",
+  "definitions": {
+    "delivery_options": {
+      "title": "Delivery options",
+      "type": "object",
+      "description": "Select the completed DRAGEN analysis and its delivery destination.",
+      "required": [
+        "input_dir",
+        "run_name"
+      ],
+      "properties": {
+        "input_dir": {
+          "type": "string",
+          "format": "directory-path",
+          "exists": true,
+          "description": "ICA folder containing the output of one completed DRAGEN WGS analysis.",
+          "fa_icon": "fas fa-folder-open"
+        },
+        "run_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "description": "Stable name used for the run folder, for example OW77.",
+          "fa_icon": "fas fa-tag"
+        },
+        "delivery_root": {
+          "type": "string",
+          "enum": [
+            "production",
+            "test"
+          ],
+          "default": "production",
+          "description": "Separate productive deliveries from test runs.",
+          "fa_icon": "fas fa-layer-group"
+        },
+        "category": {
+          "type": "string",
+          "default": "wgs",
+          "hidden": true,
+          "description": "Pipeline category below the delivery root."
+        },
+        "outdir": {
+          "type": "string",
+          "format": "directory-path",
+          "default": "out",
+          "hidden": true,
+          "description": "ICA-managed pipeline output directory."
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$ref": "#/definitions/delivery_options"
+    }
+  ]
+}

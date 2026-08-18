@@ -22,11 +22,34 @@ def safePathPart(value, name) {
     return text
 }
 
-params.input_dir = null
+params.input_dir = ''
 params.outdir    = 'out'
 params.delivery_root = 'production'
 params.category  = 'wgs'
-params.run_name  = null
+params.run_name  = ''
+
+def isSelectedResult(String relativePath) {
+    def normalized = relativePath.replace('\\', '/')
+    def parts = normalized.tokenize('/')
+    def filename = parts[-1].toLowerCase()
+
+    // ICA execution logs are not part of the scientific delivery.
+    if (parts[0] == 'ica_logs') {
+        return false
+    }
+
+    // The complete DRAGEN HTML report, including its assets, is retained.
+    if (parts[0] == 'reports') {
+        return true
+    }
+
+    // Only the two useful DRAGEN run summaries are retained as JSON.
+    if (parts.size() == 1 && filename in ['summary.json', 'passfail.json']) {
+        return true
+    }
+
+    return filename ==~ /.*\.(vcf|tsv|csv)(\.gz)?$/
+}
 
 process COPY_SELECTED_FILE {
     tag relative_path
@@ -46,8 +69,10 @@ process COPY_SELECTED_FILE {
 
     script:
     """
+    echo '[ica-wgs-delivery] COPY task started'
     mkdir -p selected
     cp -L -- "${source_file}" "selected/${source_file.name}"
+    echo '[ica-wgs-delivery] COPY task completed'
     """
 }
 
@@ -64,6 +89,7 @@ process WRITE_MANIFEST {
     path 'delivery_manifest.tsv'
 
     script:
+    def fileCount = copied_files.size()
     def rows = copied_files
         .sort { a, b -> a[0] <=> b[0] }
         .collect { row ->
@@ -74,6 +100,7 @@ process WRITE_MANIFEST {
         .join('\n')
 
     """
+    echo '[ica-wgs-delivery] MANIFEST files=${fileCount}'
     printf '%s\n' 'source_relative_path\tdelivery_relative_path\tsize_bytes' > delivery_manifest.tsv
     cat >> delivery_manifest.tsv <<'MANIFEST_ROWS'
     ${rows}
@@ -92,18 +119,46 @@ workflow {
         error "--input_dir must point to a directory: ${inputText}"
     }
 
+    log.info "[ica-wgs-delivery] START"
+    log.info "[ica-wgs-delivery] input_dir=${inputRoot}"
+    log.info "[ica-wgs-delivery] run_name=${params.run_name}"
+    log.info "[ica-wgs-delivery] delivery_root=${params.delivery_root}"
+    log.info "[ica-wgs-delivery] category=${params.category}"
+    log.info "[ica-wgs-delivery] outdir=${params.outdir}"
+    log.info "[ica-wgs-delivery] target=${params.outdir}/${params.delivery_root}/${params.category}/${params.run_name}"
+    log.info "[ica-wgs-delivery] Scanning input directory"
+
     selected = Channel
-        .fromPath("${inputText}/**/*.{vcf,vcf.gz,tsv,tsv.gz,csv,csv.gz}",
+        // Enumerating a path does not stage it. Only files surviving the
+        // filter below are passed to COPY_SELECTED_FILE and transferred.
+        .fromPath("${inputText}/**/*",
                   type: 'file', hidden: false, followLinks: true, checkIfExists: false)
         .map { source ->
             def absolute = source.toAbsolutePath().normalize()
             def relative = inputRoot.relativize(absolute).toString().replace('\\', '/')
             tuple(relative, source)
         }
+        .filter { relative, source -> isSelectedResult(relative) }
+        .map { relative, source ->
+            log.info "[ica-wgs-delivery] SELECT ${relative} (${source.size()} bytes)"
+            tuple(relative, source)
+        }
         .ifEmpty {
-            error "No VCF/TSV/CSV files found below: ${inputText}"
+            error "No delivery files found below: ${inputText}"
         }
 
     COPY_SELECTED_FILE(selected)
-    WRITE_MANIFEST(COPY_SELECTED_FILE.out.copied.map { rel, size, copied -> tuple(rel, size) }.collect())
+    copied_for_manifest = COPY_SELECTED_FILE.out.copied.map { rel, size, copied ->
+        log.info "[ica-wgs-delivery] COPIED ${rel} (${size} bytes)"
+        tuple(rel, size)
+    }
+    WRITE_MANIFEST(copied_for_manifest.collect())
+}
+
+workflow.onComplete {
+    log.info "[ica-wgs-delivery] FINISH status=${workflow.success ? 'SUCCESS' : 'FAILED'}"
+    log.info "[ica-wgs-delivery] duration=${workflow.duration}"
+    if (workflow.errorMessage) {
+        log.error "[ica-wgs-delivery] error=${workflow.errorMessage}"
+    }
 }

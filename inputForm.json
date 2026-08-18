@@ -1,0 +1,45 @@
+{
+  "fields": [
+    {
+      "id": "input_dir",
+      "type": "data",
+      "label": "WGS-Ergebnisordner",
+      "helpText": "ICA-Ordner mit den Ergebnissen eines abgeschlossenen WGS-Laufs.",
+      "minValues": 1,
+      "maxValues": 1,
+      "dataFilter": {
+        "dataType": "directory"
+      }
+    },
+    {
+      "id": "run_name",
+      "type": "textbox",
+      "label": "Laufname",
+      "helpText": "Eindeutiger Name des Laufs, zum Beispiel OW77.",
+      "placeHolderText": "OW77",
+      "minValues": 1,
+      "maxValues": 1,
+      "regex": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "regexErrorMessage": "Nur Buchstaben, Zahlen, Punkt, Unterstrich und Bindestrich sind erlaubt."
+    },
+    {
+      "id": "delivery_root",
+      "type": "select",
+      "label": "Zielbereich",
+      "helpText": "Produktive und testweise Exporte werden im Connector-Ordner getrennt.",
+      "value": "production",
+      "minValues": 1,
+      "maxValues": 1,
+      "choices": [
+        {
+          "value": "production",
+          "text": "Produktion"
+        },
+        {
+          "value": "test",
+          "text": "Test"
+        }
+      ]
+    }
+  ]
+}

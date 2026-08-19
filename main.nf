@@ -52,14 +52,14 @@ def isSelectedResult(String relativePath) {
 }
 
 process COPY_SELECTED_FILE {
-    tag relative_path
+    tag "${relative_path}"
 
     publishDir {
         def parent = relative_path.contains('/')
             ? relative_path.substring(0, relative_path.lastIndexOf('/'))
             : ''
         "${params.outdir}/${params.delivery_root}/${params.category}/${params.run_name}${parent ? '/' + parent : ''}"
-    }, mode: 'copy', overwrite: false, saveAs: { selected_file.name }
+    }, mode: 'copy', overwrite: false, saveAs: { filename -> filename.tokenize('/')[-1] }
 
     input:
     tuple val(relative_path), path(source_file)

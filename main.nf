@@ -52,20 +52,29 @@ def isSelectedResult(String relativePath) {
 }
 
 process COPY_SELECTED_FILE {
+    container 'public.ecr.aws/lts/ubuntu:22.04'
+
     tag "${relative_path}"
 
     publishDir {
         def parent = relative_path.contains('/')
             ? relative_path.substring(0, relative_path.lastIndexOf('/'))
             : ''
+
         "${params.outdir}/${params.delivery_root}/${params.category}/${params.run_name}${parent ? '/' + parent : ''}"
-    }, mode: 'copy', overwrite: false, saveAs: { filename -> filename.tokenize('/')[-1] }
+    },
+    mode: 'copy',
+    overwrite: false,
+    saveAs: { filename -> filename.tokenize('/')[-1] }
 
     input:
     tuple val(relative_path), path(source_file)
 
     output:
-    tuple val(relative_path), val(source_file.size()), path("selected/${source_file.name}"), emit: copied
+    tuple val(relative_path),
+          val(source_file.size()),
+          path("selected/${source_file.name}"),
+          emit: copied
 
     script:
     """
@@ -76,11 +85,15 @@ process COPY_SELECTED_FILE {
     """
 }
 
+
 process WRITE_MANIFEST {
+    container 'public.ecr.aws/lts/ubuntu:22.04'
+
     tag "${params.delivery_root}/${params.category}/${params.run_name}"
 
     publishDir "${params.outdir}/${params.delivery_root}/${params.category}/${params.run_name}",
-        mode: 'copy', overwrite: false
+        mode: 'copy',
+        overwrite: false
 
     input:
     val copied_files
@@ -90,11 +103,13 @@ process WRITE_MANIFEST {
 
     script:
     def fileCount = copied_files.size()
+
     def rows = copied_files
         .sort { a, b -> a[0] <=> b[0] }
         .collect { row ->
             def relative = row[0]
             def size = row[1]
+
             "${relative}\t${params.delivery_root}/${params.category}/${params.run_name}/${relative}\t${size}"
         }
         .join('\n')

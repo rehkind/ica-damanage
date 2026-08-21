@@ -157,7 +157,9 @@ workflow {
         log.info "[ica-wgs-delivery] COPIED ${rel} (${size} bytes)"
         tuple(rel, size)
     }
-    WRITE_MANIFEST(copied_for_manifest.collect())
+    // Preserve each [relative_path, size] tuple. Nextflow collect() flattens
+    // list-like values by default, which would mix paths and Long values.
+    WRITE_MANIFEST(copied_for_manifest.collect(flat: false))
 }
 
 workflow.onComplete {

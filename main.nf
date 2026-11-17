@@ -48,7 +48,7 @@ def isSelectedResult(String relativePath) {
         return true
     }
 
-    return filename ==~ /.*\.(vcf|tsv|csv)(\.gz)?$/
+    return filename ==~ /.*\.(json|vcf|tsv|csv)(\.gz)?$/
 }
 
 process COPY_SELECTED_FILE {
